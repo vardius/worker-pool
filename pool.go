@@ -5,6 +5,7 @@ import (
 	"reflect"
 )
 
+// Pool implements worker pool
 type Pool interface {
 	Delegate(args ...interface{})
 	Start(maxWorkers int, fn interface{}) error
@@ -14,6 +15,7 @@ type pool struct {
 	queue chan []reflect.Value
 }
 
+// Delegate job to a workers
 func (p *pool) Delegate(args ...interface{}) {
 
 	fArgs := make([]reflect.Value, 0)
@@ -26,6 +28,7 @@ func (p *pool) Delegate(args ...interface{}) {
 	}()
 }
 
+// Start given number of workers that will take jobs from a queue
 func (p *pool) Start(maxWorkers int, fn interface{}) error {
 	if maxWorkers < 1 {
 		return fmt.Errorf("Invalid number of workers: %d", maxWorkers)
@@ -48,6 +51,7 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 	return nil
 }
 
+// New creates new worker pool with a given job queue length
 func New(queueLength int) Pool {
 	return &pool{
 		queue: make(chan []reflect.Value, queueLength),

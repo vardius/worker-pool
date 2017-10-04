@@ -1,6 +1,9 @@
 package worker_pool
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func BenchmarkWorker(b *testing.B) {
 	pool := New(2)
