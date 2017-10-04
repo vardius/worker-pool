@@ -31,11 +31,11 @@ package main
 import (
     "fmt"
 
-    workerPool "github.com/vardius/worker-pool"
+    "github.com/vardius/worker-pool"
 )
 
 func main() {
-    pool := workerPool.New(2)
+    pool := workerpool.New(2)
 
     out := make(chan int, 3)
     defer close(out)

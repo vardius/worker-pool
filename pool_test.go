@@ -1,4 +1,4 @@
-package worker_pool
+package workerpool
 
 import (
 	"testing"
