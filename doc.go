@@ -7,7 +7,7 @@ Basic example:
 	import (
 		"fmt"
 
-		workerpool "github.com/vardius/worker-pool"
+		"github.com/vardius/worker-pool"
 	)
 
 	func main() {
