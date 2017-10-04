@@ -22,7 +22,9 @@ func TestWorkers(t *testing.T) {
 		out <- i
 	})
 
-	pool.Delegate(1, 2, 3)
+	pool.Delegate(1)
+	pool.Delegate(2)
+	pool.Delegate(3)
 
 	sum := 0
 	for n := range out {
@@ -44,7 +46,9 @@ func TestToMuchWorkers(t *testing.T) {
 		out <- i
 	})
 
-	pool.Delegate(1, 2, 3)
+	pool.Delegate(1)
+	pool.Delegate(2)
+	pool.Delegate(3)
 
 	sum := 0
 	for n := range out {

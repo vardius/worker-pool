@@ -20,7 +20,7 @@ func BenchmarkWorker(b *testing.B) {
 		var buf bytes.Buffer
 		for pb.Next() {
 			buf.Reset()
-			pool.Delegate(1, 2, 3)
+			pool.Delegate(1)
 		}
 	})
 }

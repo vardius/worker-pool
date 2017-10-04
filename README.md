@@ -35,7 +35,7 @@ import (
 )
 
 func main() {
-    pool := New(2)
+	pool := New(2)
 
 	out := make(chan int, 3)
 	defer close(out)
@@ -44,14 +44,16 @@ func main() {
 		out <- i
 	})
 
-	pool.Delegate(1, 2, 3)
+	pool.Delegate(1)
+	pool.Delegate(2)
+	pool.Delegate(3)
 
 	sum := 0
 	for n := range out {
 		sum += n
 	}
 
-    fmt.Println(sum)
+	fmt.Println(sum)
 }
 ```
 
