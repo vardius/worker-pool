@@ -28,9 +28,9 @@ func delegateWorkToWorkers(t *testing.T, poolSize int, jobsAmount int, workersAm
 	out := make(chan int, jobsAmount)
 
 	go func() {
-		defer pool.Stop()
 		wg.Wait()
 		close(out)
+		pool.Stop()
 	}()
 
 	pool.Start(workersAmount, func(i int) {
