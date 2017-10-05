@@ -33,14 +33,14 @@ func delegateWorkToWorkers(t *testing.T, poolSize int, jobsAmount int, workersAm
 		close(out)
 	}()
 
-	pool.Start(2, func(i int) {
+	pool.Start(workersAmount, func(i int) {
 		defer wg.Done()
 		out <- i
 	})
 
 	wg.Add(jobsAmount)
 
-	for i := 0; i < jobsAmount; i++ {
+	for i := 1; i <= jobsAmount; i++ {
 		pool.Delegate(i)
 	}
 

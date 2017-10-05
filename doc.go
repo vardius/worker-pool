@@ -14,6 +14,10 @@ Basic example:
 	func main() {
 		var wg sync.WaitGroup
 
+		poolSize: 1
+		jobsAmount: 3
+		workersAmount: 2
+
 		// create new pool
 		pool := workerpool.New(poolSize)
 		out := make(chan int, jobsAmount)
@@ -25,7 +29,7 @@ Basic example:
 			close(out)
 		}()
 
-		pool.Start(2, func(i int) {
+		pool.Start(workersAmount, func(i int) {
 			defer wg.Done()
 			out <- i
 		})
