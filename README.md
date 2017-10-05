@@ -46,13 +46,6 @@ func main() {
     pool := workerpool.New(poolSize)
     out := make(chan int, jobsAmount)
 
-    go func() {
-        // stop all workers after jobs are done
-        defer pool.Stop()
-        wg.Wait()
-        close(out)
-    }()
-
     pool.Start(workersAmount, func(i int) {
         defer wg.Done()
         out <- i
@@ -63,6 +56,13 @@ func main() {
     for i := 0; i < jobsAmount; i++ {
         pool.Delegate(i)
     }
+
+    go func() {
+        // stop all workers after jobs are done
+        wg.Wait()
+        close(out)
+        pool.Stop()
+    }()
 
     sum := 0
     for n := range out {
