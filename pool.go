@@ -1,6 +1,7 @@
 package workerpool
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 )
@@ -9,22 +10,19 @@ import (
 type Pool interface {
 	Delegate(args ...interface{})
 	Start(maxWorkers int, fn interface{}) error
+	Stop()
 }
 
 type pool struct {
-	queue chan []reflect.Value
+	ctx    context.Context
+	cancel context.CancelFunc
+	queue  chan []reflect.Value
 }
 
 // Delegate job to a workers
 func (p *pool) Delegate(args ...interface{}) {
-
-	fArgs := make([]reflect.Value, 0)
-	for _, arg := range args {
-		fArgs = append(fArgs, reflect.ValueOf(arg))
-	}
-
 	go func() {
-		p.queue <- fArgs
+		p.queue <- buildQueueValue(args)
 	}()
 }
 
@@ -42,8 +40,13 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 		h := reflect.ValueOf(fn)
 
 		go func() {
-			for args := range p.queue {
-				h.Call(args)
+			for {
+				select {
+				case args := <-p.queue:
+					h.Call(args)
+				case <-p.ctx.Done():
+					return
+				}
 			}
 		}()
 	}
@@ -51,9 +54,28 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 	return nil
 }
 
+// Stop all workers
+func (p *pool) Stop() {
+	p.cancel()
+}
+
+func buildQueueValue(args []interface{}) []reflect.Value {
+	reflectedArgs := make([]reflect.Value, 0)
+
+	for _, arg := range args {
+		reflectedArgs = append(reflectedArgs, reflect.ValueOf(arg))
+	}
+
+	return reflectedArgs
+}
+
 // New creates new worker pool with a given job queue length
 func New(queueLength int) Pool {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &pool{
-		queue: make(chan []reflect.Value, queueLength),
+		ctx:    ctx,
+		cancel: cancel,
+		queue:  make(chan []reflect.Value, queueLength),
 	}
 }

@@ -7,6 +7,7 @@ import (
 
 func BenchmarkWorker(b *testing.B) {
 	pool := New(2)
+	defer pool.Stop()
 
 	out := make(chan int, 3)
 	defer close(out)

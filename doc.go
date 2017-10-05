@@ -6,23 +6,35 @@ Basic example:
 
 	import (
 		"fmt"
+		"sync"
 
-		workerpool "github.com/vardius/worker-pool"
+		"github.com/vardius/worker-pool"
 	)
 
 	func main() {
-		pool := workerPool.New(2)
+		var wg sync.WaitGroup
 
-		out := make(chan int, 3)
-		defer close(out)
+		// create new pool
+		pool := workerpool.New(poolSize)
+		out := make(chan int, jobsAmount)
+
+		go func() {
+			// stop all workers after jobs are done
+			defer pool.Stop()
+			wg.Wait()
+			close(out)
+		}()
 
 		pool.Start(2, func(i int) {
+			defer wg.Done()
 			out <- i
 		})
 
-		pool.Delegate(1)
-		pool.Delegate(2)
-		pool.Delegate(3)
+		wg.Add(workersAmount)
+
+		for i := 0; i < jobsAmount; i++ {
+			pool.Delegate(i)
+		}
 
 		sum := 0
 		for n := range out {
