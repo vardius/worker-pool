@@ -29,7 +29,6 @@ HOW TO USE
 ➜  worker-pool git:(master) ✗ go test -bench=. -cpu=4
 BenchmarkWorker-4        1000000              1853 ns/op
 PASS
-ok      _/Users/vardius/Projects/worker-pool    3.057s
 ```
 
 ## Basic example
