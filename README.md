@@ -25,8 +25,8 @@ HOW TO USE
 1. [GoDoc](http://godoc.org/github.com/vardius/worker-pool)
 
 ## Benchmark
-**CPU: 3,3 GHz Intel Core i7
-RAM: 16 GB 2133 MHz LPDDR3**
+**CPU: 3,3 GHz Intel Core i7**
+**RAM: 16 GB 2133 MHz LPDDR3**
 ```bash
 ➜  worker-pool git:(master) ✗ go test -bench=. -cpu=4
 BenchmarkWorker-4        1000000              1853 ns/op
