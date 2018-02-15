@@ -47,40 +47,42 @@ import (
 )
 
 func main() {
-    var wg sync.WaitGroup
+	var wg sync.WaitGroup
 
-    poolSize: 1
-    jobsAmount: 3
-    workersAmount: 2
+	poolSize := 1
+	jobsAmount := 3
+	workersAmount := 2
 
-    // create new pool
-    pool := workerpool.New(poolSize)
-    out := make(chan int, jobsAmount)
+	// create new pool
+	pool := workerpool.New(poolSize)
+	out := make(chan int, jobsAmount)
 
-    pool.Start(workersAmount, func(i int) {
-        defer wg.Done()
-        out <- i
-    })
+	pool.Start(workersAmount, func(i int) {
+		defer wg.Done()
+		out <- i
+	})
 
-    wg.Add(workersAmount)
+	wg.Add(jobsAmount)
 
-    for i := 0; i < jobsAmount; i++ {
-        pool.Delegate(i)
-    }
+	for i := 0; i < jobsAmount; i++ {
+		pool.Delegate(i)
+	}
 
-    go func() {
-        // stop all workers after jobs are done
-        wg.Wait()
-        close(out)
-        pool.Stop()
-    }()
+	go func() {
+		// stop all workers after jobs are done
+		wg.Wait()
+		close(out)
+		pool.Stop()
+	}()
 
-    sum := 0
-    for n := range out {
-        sum += n
-    }
+	sum := 0
+	for n := range out {
+		sum += n
+	}
 
-    fmt.Println(sum)
+	fmt.Println(sum)
+	// Output:
+	// 3
 }
 ```
 
