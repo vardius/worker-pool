@@ -20,10 +20,9 @@ type pool struct {
 }
 
 // Delegate job to a workers
+// will block if channel is full, you might want to wrap it with goroutine to avoid it
 func (p *pool) Delegate(args ...interface{}) {
-	go func() {
-		p.queue <- buildQueueValue(args)
-	}()
+	p.queue <- buildQueueValue(args)
 }
 
 // Start given number of workers that will take jobs from a queue
