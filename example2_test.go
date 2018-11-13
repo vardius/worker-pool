@@ -8,7 +8,7 @@ import (
 	workerpool "github.com/vardius/worker-pool"
 )
 
-func Example2() {
+func Example_second() {
 	poolSize := 2
 	jobsAmount := 8
 	workersAmount := 3
