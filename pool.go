@@ -21,6 +21,7 @@ type pool struct {
 
 // Delegate job to a workers
 // will block if channel is full, you might want to wrap it with goroutine to avoid it
+// will panic if called after Stop()
 func (p *pool) Delegate(args ...interface{}) {
 	p.queue <- buildQueueValue(args)
 }
@@ -33,6 +34,10 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 
 	if reflect.TypeOf(fn).Kind() != reflect.Func {
 		return fmt.Errorf("%s is not a reflect.Func", reflect.TypeOf(fn))
+	}
+
+	if err := p.ctx.Err(); err != nil {
+		return err
 	}
 
 	for i := 1; i <= maxWorkers; i++ {
@@ -55,6 +60,7 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 
 // Stop all workers
 func (p *pool) Stop() {
+	defer close(p.queue)
 	p.cancel()
 }
 
