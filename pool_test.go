@@ -67,7 +67,7 @@ func delegateWorkToWorkers(t *testing.T, poolSize int, jobsAmount int, workersAm
 	}
 
 	if sum == 0 {
-		fmt.Errorf("Delegating job %d to %d workers faild", jobsAmount, workersAmount)
+		fmt.Errorf("Delegating job %d to %d workers failed", jobsAmount, workersAmount)
 		t.Fail()
 	}
 }
