@@ -30,9 +30,17 @@ HOW TO USE
 **RAM: 16 GB 2133 MHz LPDDR3**
 
 ```bash
-➜  worker-pool git:(master) ✗ go test -bench=. -cpu=4
-BenchmarkWorker-4        1000000              1853 ns/op
+➜  worker-pool git:(master) ✗ go test -bench=. -cpu=4 -benchmem
+goos: darwin
+goarch: amd64
+BenchmarkWorkerNumCPU-4                  2000000               851 ns/op              56 B/op          3 allocs/op
+BenchmarkWorkerNumCPUParallel-4          2000000               710 ns/op              48 B/op          2 allocs/op
+BenchmarkWorker-4                        1000000              1003 ns/op              56 B/op          3 allocs/op
+BenchmarkWorkerParallel-4                2000000               925 ns/op              48 B/op          2 allocs/op
+BenchmarkWorker100-4                     2000000               784 ns/op              56 B/op          3 allocs/op
+BenchmarkWorker100Parallel-4             3000000               559 ns/op              48 B/op          2 allocs/op
 PASS
+ok      worker-pool    13.158s
 ```
 
 ## Basic example
