@@ -33,14 +33,14 @@ HOW TO USE
 ➜  worker-pool git:(master) ✗ go test -bench=. -cpu=4 -benchmem
 goos: darwin
 goarch: amd64
-BenchmarkWorkerNumCPU-4                  2000000               851 ns/op              56 B/op          3 allocs/op
-BenchmarkWorkerNumCPUParallel-4          2000000               710 ns/op              48 B/op          2 allocs/op
-BenchmarkWorker-4                        1000000              1003 ns/op              56 B/op          3 allocs/op
-BenchmarkWorkerParallel-4                2000000               925 ns/op              48 B/op          2 allocs/op
-BenchmarkWorker100-4                     2000000               784 ns/op              56 B/op          3 allocs/op
-BenchmarkWorker100Parallel-4             3000000               559 ns/op              48 B/op          2 allocs/op
+BenchmarkWorker1-4                	 3000000	       453 ns/op	      56 B/op	       3 allocs/op
+BenchmarkWorker1Parallel-4        	 3000000	       506 ns/op	      48 B/op	       2 allocs/op
+BenchmarkWorker100-4              	 3000000	       485 ns/op	      56 B/op	       3 allocs/op
+BenchmarkWorker100Parallel-4      	 3000000	       444 ns/op	      48 B/op	       2 allocs/op
+BenchmarkWorkerNumCPU-4           	 3000000	       467 ns/op	      56 B/op	       3 allocs/op
+BenchmarkWorkerNumCPUParallel-4   	 3000000	       431 ns/op	      48 B/op	       2 allocs/op
 PASS
-ok      worker-pool    13.158s
+ok  	worker-pool	11.570s
 ```
 
 ## Basic example

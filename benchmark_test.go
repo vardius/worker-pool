@@ -21,56 +21,52 @@ func poolDelegateParallel(b *testing.B, pool Pool) {
 	})
 }
 
-func BenchmarkWorkerNumCPU(b *testing.B) {
-	pool := New(runtime.NumCPU())
+func runBenchmark(b *testing.B, workersAmount int, runInParallel bool) {
+	ch := make(chan int, b.N)
+	defer close(ch)
+
+	pool := New(b.N)
 	defer pool.Stop()
 
-	pool.Start(runtime.NumCPU(), func(i int) {})
+	pool.Start(workersAmount, func(i int) { ch <- i })
 
-	poolDelegate(b, pool)
+	go func() {
+		if runInParallel {
+			poolDelegateParallel(b, pool)
+		} else {
+			poolDelegate(b, pool)
+		}
+	}()
+
+	var i = 0
+	for i < b.N {
+		select {
+		case <-ch:
+			i++
+		}
+	}
 }
 
-func BenchmarkWorkerNumCPUParallel(b *testing.B) {
-	pool := New(runtime.NumCPU())
-	defer pool.Stop()
-
-	pool.Start(runtime.NumCPU(), func(i int) {})
-
-	poolDelegateParallel(b, pool)
+func BenchmarkWorker1(b *testing.B) {
+	runBenchmark(b, 1, false)
 }
 
-func BenchmarkWorker(b *testing.B) {
-	pool := New(1)
-	defer pool.Stop()
-
-	pool.Start(1, func(i int) {})
-
-	poolDelegate(b, pool)
-}
-
-func BenchmarkWorkerParallel(b *testing.B) {
-	pool := New(1)
-	defer pool.Stop()
-
-	pool.Start(1, func(i int) {})
-
-	poolDelegateParallel(b, pool)
+func BenchmarkWorker1Parallel(b *testing.B) {
+	runBenchmark(b, 1, true)
 }
 
 func BenchmarkWorker100(b *testing.B) {
-	pool := New(100)
-	defer pool.Stop()
-
-	pool.Start(100, func(i int) {})
-
-	poolDelegate(b, pool)
+	runBenchmark(b, 100, false)
 }
 
 func BenchmarkWorker100Parallel(b *testing.B) {
-	pool := New(100)
-	defer pool.Stop()
+	runBenchmark(b, 100, true)
+}
 
-	pool.Start(100, func(i int) {})
+func BenchmarkWorkerNumCPU(b *testing.B) {
+	runBenchmark(b, runtime.NumCPU()+1, false)
+}
 
-	poolDelegateParallel(b, pool)
+func BenchmarkWorkerNumCPUParallel(b *testing.B) {
+	runBenchmark(b, runtime.NumCPU()+1, true)
 }
