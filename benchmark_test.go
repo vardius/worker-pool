@@ -5,18 +5,16 @@ import (
 	"testing"
 )
 
-func poolDelegate(b *testing.B, pool Pool) {
-	b.ResetTimer()
+func poolDelegate(b *testing.B, pool Pool, out chan<- int) {
 	for n := 0; n < b.N; n++ {
-		pool.Delegate(n)
+		pool.Delegate(n, out)
 	}
 }
 
-func poolDelegateParallel(b *testing.B, pool Pool) {
-	b.ResetTimer()
+func poolDelegateParallel(b *testing.B, pool Pool, out chan<- int) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			pool.Delegate(1)
+			pool.Delegate(1, out)
 		}
 	})
 }
@@ -28,13 +26,13 @@ func runBenchmark(b *testing.B, workersAmount int, runInParallel bool) {
 	pool := New(b.N)
 	defer pool.Stop()
 
-	pool.Start(workersAmount, func(i int) { ch <- i })
+	pool.Start(workersAmount, func(i int, out chan<- int) { out <- i })
 
 	go func() {
 		if runInParallel {
-			poolDelegateParallel(b, pool)
+			poolDelegateParallel(b, pool, ch)
 		} else {
-			poolDelegate(b, pool)
+			poolDelegate(b, pool, ch)
 		}
 	}()
 
