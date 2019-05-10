@@ -47,9 +47,11 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 			for {
 				select {
 				case args, ok := <-p.queue:
-					if ok {
-						h.Call(args)
+					if !ok {
+						return
 					}
+
+					h.Call(args)
 				case <-p.ctx.Done():
 					return
 				}
