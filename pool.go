@@ -8,8 +8,13 @@ import (
 
 // Pool implements worker pool
 type Pool interface {
+	// Delegate job to a workers
+	// will block if channel is full, you might want to wrap it with goroutine to avoid it
+	// will panic if called after Stop()
 	Delegate(args ...interface{})
+	// Start given number of workers that will take jobs from a queue
 	Start(maxWorkers int, fn interface{}) error
+	// Stop all workers
 	Stop()
 }
 
@@ -19,14 +24,10 @@ type pool struct {
 	queue  chan []reflect.Value
 }
 
-// Delegate job to a workers
-// will block if channel is full, you might want to wrap it with goroutine to avoid it
-// will panic if called after Stop()
 func (p *pool) Delegate(args ...interface{}) {
 	p.queue <- buildQueueValue(args)
 }
 
-// Start given number of workers that will take jobs from a queue
 func (p *pool) Start(maxWorkers int, fn interface{}) error {
 	if maxWorkers < 1 {
 		return fmt.Errorf("Invalid number of workers: %d", maxWorkers)
@@ -62,7 +63,6 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 	return nil
 }
 
-// Stop all workers
 func (p *pool) Stop() {
 	defer close(p.queue)
 	p.cancel()
