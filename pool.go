@@ -1,7 +1,6 @@
 package workerpool
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 )
@@ -19,9 +18,8 @@ type Pool interface {
 }
 
 type pool struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	queue  chan []reflect.Value
+	queue         chan []reflect.Value
+	isQueueClosed bool
 }
 
 func (p *pool) Delegate(args ...interface{}) {
@@ -37,25 +35,16 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 		return fmt.Errorf("%s is not a reflect.Func", reflect.TypeOf(fn))
 	}
 
-	if err := p.ctx.Err(); err != nil {
-		return err
+	if p.isQueueClosed {
+		return fmt.Errorf("Can not start already stopped worker")
 	}
 
 	for i := 1; i <= maxWorkers; i++ {
 		h := reflect.ValueOf(fn)
 
 		go func() {
-			for {
-				select {
-				case args, ok := <-p.queue:
-					if !ok {
-						return
-					}
-
-					h.Call(args)
-				case <-p.ctx.Done():
-					return
-				}
+			for args := range p.queue {
+				h.Call(args)
 			}
 		}()
 	}
@@ -64,8 +53,8 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 }
 
 func (p *pool) Stop() {
-	defer close(p.queue)
-	p.cancel()
+	close(p.queue)
+	p.isQueueClosed = true
 }
 
 func buildQueueValue(args []interface{}) []reflect.Value {
@@ -80,11 +69,7 @@ func buildQueueValue(args []interface{}) []reflect.Value {
 
 // New creates new worker pool with a given job queue length
 func New(queueLength int) Pool {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	return &pool{
-		ctx:    ctx,
-		cancel: cancel,
-		queue:  make(chan []reflect.Value, queueLength),
+		queue: make(chan []reflect.Value, queueLength),
 	}
 }
