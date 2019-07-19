@@ -39,12 +39,11 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 		return fmt.Errorf("Can not start already stopped worker")
 	}
 
+	task := reflect.ValueOf(fn)
 	for i := 1; i <= maxWorkers; i++ {
-		h := reflect.ValueOf(fn)
-
 		go func() {
 			for args := range p.queue {
-				h.Call(args)
+				task.Call(args)
 			}
 		}()
 	}
