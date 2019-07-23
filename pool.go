@@ -40,6 +40,7 @@ func (p *pool) Start(maxWorkers int, fn interface{}) error {
 	}
 
 	task := reflect.ValueOf(fn)
+
 	for i := 1; i <= maxWorkers; i++ {
 		go func() {
 			for args := range p.queue {
