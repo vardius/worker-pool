@@ -102,6 +102,4 @@ This package is released under the MIT license. See the complete license in the 
 
 [LICENSE](LICENSE.md)
 
-
-## License
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fvardius%2Fworker-pool.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fvardius%2Fworker-pool?ref=badge_large)
