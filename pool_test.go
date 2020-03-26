@@ -74,7 +74,9 @@ func delegateWorkToWorkers(t *testing.T, poolSize int, jobsAmount int, workersAm
 	wg.Add(jobsAmount)
 
 	for i := 1; i <= jobsAmount; i++ {
-		pool.Delegate(i)
+		if err := pool.Delegate(i); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	go func() {

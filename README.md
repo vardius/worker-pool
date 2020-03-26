@@ -86,7 +86,9 @@ func main() {
 	wg.Add(jobsAmount)
 
 	for i := 0; i < jobsAmount; i++ {
-		pool.Delegate(i)
+		if err := pool.Delegate(i); err != nil {
+			panic(err)
+		}
 	}
 
 	go func() {

@@ -32,7 +32,9 @@ func Example() {
 	wg.Add(jobsAmount)
 
 	for i := 0; i < jobsAmount; i++ {
-		pool.Delegate(i)
+		if err := pool.Delegate(i); err != nil {
+			panic(err)
+		}
 	}
 
 	go func() {
@@ -74,7 +76,9 @@ func Example_second() {
 
 	go func() {
 		for n := 0; n < jobsAmount; n++ {
-			pool.Delegate(n, ch)
+			if err := pool.Delegate(n, ch); err != nil {
+				panic(err)
+			}
 		}
 	}()
 
@@ -111,7 +115,9 @@ func Example_third() {
 	// assign job
 	for i := 0; i < jobsAmount; i++ {
 		go func(i int) {
-			pool.Delegate(argx[i])
+			if err := pool.Delegate(argx[i]); err != nil {
+				panic(err)
+			}
 		}(i)
 	}
 

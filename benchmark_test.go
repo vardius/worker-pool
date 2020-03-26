@@ -7,14 +7,18 @@ import (
 
 func poolDelegate(b *testing.B, pool Pool) {
 	for n := 0; n < b.N; n++ {
-		pool.Delegate(n)
+		if err := pool.Delegate(n); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
 func poolDelegateParallel(b *testing.B, pool Pool) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			pool.Delegate(1)
+			if err := pool.Delegate(1); err != nil {
+				b.Fatal(err)
+			}
 		}
 	})
 }
