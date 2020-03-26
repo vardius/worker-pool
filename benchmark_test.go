@@ -26,7 +26,13 @@ func runBenchmark(b *testing.B, workersAmount int, runInParallel bool) {
 	pool := New(b.N)
 	defer pool.Stop()
 
-	pool.Start(workersAmount, func(i int, out chan<- int) { out <- i })
+	worker := func(i int, out chan<- int) { out <- i }
+
+	for i := 1; i <= workersAmount; i++ {
+		if err := pool.AddWorker(worker); err != nil {
+			b.Fatal(err)
+		}
+	}
 
 	go func() {
 		if runInParallel {

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"sync"
 
-	workerpool "github.com/vardius/worker-pool"
+	workerpool "github.com/vardius/worker-pool/v2"
 )
 
 func Example() {
@@ -18,11 +18,16 @@ func Example() {
 	// create new pool
 	pool := workerpool.New(poolSize)
 	out := make(chan int, jobsAmount)
-
-	pool.Start(workersAmount, func(i int) {
+	worker := func(i int) {
 		defer wg.Done()
 		out <- i
-	})
+	}
+
+	for i := 1; i <= workersAmount; i++ {
+		if err := pool.AddWorker(worker); err != nil {
+			panic(err)
+		}
+	}
 
 	wg.Add(jobsAmount)
 
@@ -59,7 +64,13 @@ func Example_second() {
 	pool := workerpool.New(poolSize)
 	defer pool.Stop()
 
-	pool.Start(workersAmount, func(i int, out chan<- int) { out <- i })
+	worker := func(i int, out chan<- int) { out <- i }
+
+	for i := 1; i <= workersAmount; i++ {
+		if err := pool.AddWorker(worker); err != nil {
+			panic(err)
+		}
+	}
 
 	go func() {
 		for n := 0; n < jobsAmount; n++ {
@@ -104,12 +115,18 @@ func Example_third() {
 		}(i)
 	}
 
-	// start worker
-	pool.Start(workersAmount, func(s string) {
+	worker := func(s string) {
 		defer wg.Done()
 		defer fmt.Println("job " + s + " is done !")
 		fmt.Println("job " + s + " is running ..")
-	})
+	}
+
+	// start workers
+	for i := 1; i <= workersAmount; i++ {
+		if err := pool.AddWorker(worker); err != nil {
+			panic(err)
+		}
+	}
 
 	// clean up
 	wg.Wait()

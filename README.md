@@ -40,14 +40,15 @@ For **GoDoc** reference, **visit [pkg.go.dev](https://pkg.go.dev/github.com/vard
 ➜  worker-pool git:(master) ✗ go test -bench=. -cpu=4 -benchmem
 goos: darwin
 goarch: amd64
-BenchmarkWorker1-4                	 3000000	       453 ns/op	      56 B/op	       3 allocs/op
-BenchmarkWorker1Parallel-4        	 3000000	       506 ns/op	      48 B/op	       2 allocs/op
-BenchmarkWorker100-4              	 3000000	       485 ns/op	      56 B/op	       3 allocs/op
-BenchmarkWorker100Parallel-4      	 3000000	       444 ns/op	      48 B/op	       2 allocs/op
-BenchmarkWorkerNumCPU-4           	 3000000	       467 ns/op	      56 B/op	       3 allocs/op
-BenchmarkWorkerNumCPUParallel-4   	 3000000	       431 ns/op	      48 B/op	       2 allocs/op
+pkg: github.com/vardius/worker-pool/v2
+BenchmarkWorker1-4                	 3435846	       358 ns/op	     152 B/op	       4 allocs/op
+BenchmarkWorker1Parallel-4        	 2993271	       403 ns/op	     144 B/op	       3 allocs/op
+BenchmarkWorker100-4              	 2140670	       543 ns/op	     152 B/op	       4 allocs/op
+BenchmarkWorker100Parallel-4      	 3379311	       332 ns/op	     144 B/op	       3 allocs/op
+BenchmarkWorkerNumCPU-4           	 2536502	       438 ns/op	     152 B/op	       4 allocs/op
+BenchmarkWorkerNumCPUParallel-4   	 3061671	       353 ns/op	     144 B/op	       3 allocs/op
 PASS
-ok  	worker-pool	11.570s
+ok  	github.com/vardius/worker-pool/v2	9.590s
 ```
 
 ## 🏫 Basic example
@@ -58,7 +59,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/vardius/worker-pool"
+    "github.com/vardius/worker-pool/v2"
 )
 
 func main() {
@@ -71,11 +72,16 @@ func main() {
 	// create new pool
 	pool := workerpool.New(poolSize)
 	out := make(chan int, jobsAmount)
+	worker := func(i int) {
+        defer wg.Done()
+        out <- i
+    }
 
-	pool.Start(workersAmount, func(i int) {
-		defer wg.Done()
-		out <- i
-	})
+	for i := 1; i <= workersAmount; i++ {
+		if err := pool.AddWorker(worker); err != nil {
+			panic(err)
+		}
+	}
 
 	wg.Add(jobsAmount)
 

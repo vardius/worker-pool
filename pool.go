@@ -3,6 +3,7 @@ package workerpool
 import (
 	"fmt"
 	"reflect"
+	"sync"
 )
 
 // Pool implements worker pool
@@ -11,8 +12,14 @@ type Pool interface {
 	// will block if channel is full, you might want to wrap it with goroutine to avoid it
 	// will panic if called after Stop()
 	Delegate(args ...interface{})
-	// Start given number of workers that will take jobs from a queue
-	Start(maxWorkers int, fn interface{}) error
+
+	// AddWorker adds worker to the pool
+	AddWorker(fn interface{}) error
+	// RemoveWorker removes worker from the pool
+	RemoveWorker(fn interface{}) error
+
+	// WorkersNum returns number of workers in the pool
+	WorkersNum() int
 	// Stop all workers
 	Stop()
 }
@@ -20,41 +27,73 @@ type Pool interface {
 type pool struct {
 	queue         chan []reflect.Value
 	isQueueClosed bool
+	workers       []reflect.Value
+	mtx           sync.RWMutex
 }
 
 func (p *pool) Delegate(args ...interface{}) {
 	p.queue <- buildQueueValue(args)
 }
 
-func (p *pool) Start(maxWorkers int, fn interface{}) error {
-	if maxWorkers < 1 {
-		return fmt.Errorf("Invalid number of workers: %d", maxWorkers)
-	}
-
-	if reflect.TypeOf(fn).Kind() != reflect.Func {
-		return fmt.Errorf("%s is not a reflect.Func", reflect.TypeOf(fn))
+func (p *pool) AddWorker(fn interface{}) error {
+	if err := isValidHandler(fn); err != nil {
+		return err
 	}
 
 	if p.isQueueClosed {
-		return fmt.Errorf("Can not start already stopped worker")
+		return fmt.Errorf("can not add new worker to already stopped pool")
 	}
 
-	task := reflect.ValueOf(fn)
+	worker := reflect.ValueOf(fn)
 
-	for i := 1; i <= maxWorkers; i++ {
-		go func() {
-			for args := range p.queue {
-				task.Call(args)
-			}
-		}()
+	go func() {
+		for args := range p.queue {
+			worker.Call(args)
+		}
+	}()
+
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	p.workers = append(p.workers, worker)
+
+	return nil
+}
+
+func (p *pool) RemoveWorker(fn interface{}) error {
+	if err := isValidHandler(fn); err != nil {
+		return err
+	}
+
+	rv := reflect.ValueOf(fn)
+
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	for i, worker := range p.workers {
+		if worker == rv {
+			p.workers = append(p.workers[:i], p.workers[i+1:]...)
+		}
 	}
 
 	return nil
 }
 
+func (p *pool) WorkersNum() int {
+	return len(p.workers)
+}
+
 func (p *pool) Stop() {
 	close(p.queue)
 	p.isQueueClosed = true
+}
+
+func isValidHandler(fn interface{}) error {
+	if reflect.TypeOf(fn).Kind() != reflect.Func {
+		return fmt.Errorf("%s is not a reflect.Func", reflect.TypeOf(fn))
+	}
+
+	return nil
 }
 
 func buildQueueValue(args []interface{}) []reflect.Value {
@@ -70,6 +109,7 @@ func buildQueueValue(args []interface{}) []reflect.Value {
 // New creates new worker pool with a given job queue length
 func New(queueLength int) Pool {
 	return &pool{
-		queue: make(chan []reflect.Value, queueLength),
+		queue:   make(chan []reflect.Value, queueLength),
+		workers: make([]reflect.Value, 0),
 	}
 }

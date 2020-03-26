@@ -14,20 +14,12 @@ func TestNew(t *testing.T) {
 		t.Fail()
 	}
 }
-func TestInvalidWorkersNumber(t *testing.T) {
-	pool := New(2)
-	defer pool.Stop()
-
-	if pool.Start(0, func() {}) == nil {
-		t.Fail()
-	}
-}
 
 func TestInvalidWorker(t *testing.T) {
 	pool := New(2)
 	defer pool.Stop()
 
-	if pool.Start(1, "worker") == nil {
+	if pool.AddWorker("worker") == nil {
 		t.Fail()
 	}
 }
@@ -43,11 +35,16 @@ func delegateWorkToWorkers(t *testing.T, poolSize int, jobsAmount int, workersAm
 
 	pool := New(poolSize)
 	out := make(chan int, jobsAmount)
-
-	pool.Start(workersAmount, func(i int) {
+	worker := func(i int) {
 		defer wg.Done()
 		out <- i
-	})
+	}
+
+	for i := 1; i <= workersAmount; i++ {
+		if err := pool.AddWorker(worker); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	wg.Add(jobsAmount)
 

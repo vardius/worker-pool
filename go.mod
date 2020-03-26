@@ -1,3 +1,3 @@
-module github.com/vardius/worker-pool
+module github.com/vardius/worker-pool/v2
 
-go 1.12
+go 1.13
