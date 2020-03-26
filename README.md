@@ -41,14 +41,14 @@ For **GoDoc** reference, **visit [pkg.go.dev](https://pkg.go.dev/github.com/vard
 goos: darwin
 goarch: amd64
 pkg: github.com/vardius/worker-pool/v2
-BenchmarkWorker1-4                	 3435846	       358 ns/op	     152 B/op	       4 allocs/op
-BenchmarkWorker1Parallel-4        	 2993271	       403 ns/op	     144 B/op	       3 allocs/op
-BenchmarkWorker100-4              	 2140670	       543 ns/op	     152 B/op	       4 allocs/op
-BenchmarkWorker100Parallel-4      	 3379311	       332 ns/op	     144 B/op	       3 allocs/op
-BenchmarkWorkerNumCPU-4           	 2536502	       438 ns/op	     152 B/op	       4 allocs/op
-BenchmarkWorkerNumCPUParallel-4   	 3061671	       353 ns/op	     144 B/op	       3 allocs/op
+BenchmarkWorker1-4                	 3944299	       284 ns/op	      56 B/op	       3 allocs/op
+BenchmarkWorker1Parallel-4        	 7394715	       138 ns/op	      48 B/op	       2 allocs/op
+BenchmarkWorker100-4              	 1657569	       693 ns/op	      56 B/op	       3 allocs/op
+BenchmarkWorker100Parallel-4      	 3673483	       368 ns/op	      48 B/op	       2 allocs/op
+BenchmarkWorkerNumCPU-4           	 2590293	       445 ns/op	      56 B/op	       3 allocs/op
+BenchmarkWorkerNumCPUParallel-4   	 3591553	       298 ns/op	      48 B/op	       2 allocs/op
 PASS
-ok  	github.com/vardius/worker-pool/v2	9.590s
+ok  	github.com/vardius/worker-pool/v2	9.511s
 ```
 
 ## 🏫 Basic example
@@ -93,7 +93,7 @@ func main() {
 		// stop all workers after jobs are done
 		wg.Wait()
 		close(out)
-		pool.Stop()
+		pool.Stop() // stop removes all workers from pool, to resume work add them again
 	}()
 
 	sum := 0
