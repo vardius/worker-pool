@@ -20,6 +20,7 @@ Worker pool is a software design pattern for achieving concurrency of task execu
 
 You can read more about worker pools in Go [here](https://brandur.org/go-worker-pool).
 
+
 Contributors:
 
 * [Rafał Lorenz](http://rafallorenz.com)
