@@ -105,26 +105,16 @@ func Example_third() {
 
 	// allocate queue
 	pool := workerpool.New(poolSize)
-
-	// moc arg
-	argx := make([]string, jobsAmount)
-	for j := 0; j < jobsAmount; j++ {
-		argx[j] = "_" + strconv.Itoa(j) + "_"
-	}
-
-	// assign job
-	for i := 0; i < jobsAmount; i++ {
-		go func(i int) {
-			if err := pool.Delegate(argx[i]); err != nil {
-				panic(err)
-			}
-		}(i)
-	}
-
 	worker := func(s string) {
 		defer wg.Done()
 		defer fmt.Println("job " + s + " is done !")
 		fmt.Println("job " + s + " is running ..")
+	}
+
+	// mock arg
+	argx := make([]string, jobsAmount)
+	for j := 0; j < jobsAmount; j++ {
+		argx[j] = "_" + strconv.Itoa(j) + "_"
 	}
 
 	// start workers
@@ -134,11 +124,34 @@ func Example_third() {
 		}
 	}
 
+	// assign jobs
+	for i := 0; i < jobsAmount; i++ {
+		go func(i int) {
+			if err := pool.Delegate(argx[i]); err != nil {
+				panic(err)
+			}
+		}(i)
+	}
+
 	// clean up
 	wg.Wait()
 	pool.Stop()
 
-	// fmt.Println("# hi: ok?")
-	// Output:
-	// # sq: let-me-check
+	// Unordered output:
+	// job _0_ is running ..
+	// job _0_ is done !
+	// job _1_ is running ..
+	// job _1_ is done !
+	// job _2_ is running ..
+	// job _2_ is done !
+	// job _3_ is running ..
+	// job _3_ is done !
+	// job _4_ is running ..
+	// job _4_ is done !
+	// job _5_ is running ..
+	// job _5_ is done !
+	// job _6_ is running ..
+	// job _6_ is done !
+	// job _7_ is running ..
+	// job _7_ is done !
 }
