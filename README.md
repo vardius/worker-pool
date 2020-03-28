@@ -13,6 +13,13 @@ Go simple async worker pool.
 
 📖 ABOUT
 ==================================================
+
+Worker pool is a software design pattern for achieving concurrency of task execution. Maintains multiple workers waiting for tasks to be allocated for concurrent execution. By maintaining a pool of workers, the model increases performance and avoids latency in execution. The number of available workers might be tuned to the computing resources available.
+
+<img src="https://brandur.org/assets/images/go-worker-pool/worker-pool.svg" href="https://brandur.org/go-worker-pool" />
+
+You can read more about worker pools in Go [here](https://brandur.org/go-worker-pool).
+
 Contributors:
 
 * [Rafał Lorenz](http://rafallorenz.com)
