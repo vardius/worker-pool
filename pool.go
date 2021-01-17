@@ -26,7 +26,7 @@ type Pool interface {
 	Stop()
 }
 
-type quitCh chan interface{}
+type quitCh chan struct{}
 type workers map[reflect.Value][]quitCh
 
 type pool struct {
