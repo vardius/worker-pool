@@ -1,157 +1,85 @@
 package workerpool_test
 
 import (
+	"context"
 	"fmt"
-	"strconv"
 	"sync"
+	"time"
 
-	workerpool "github.com/vardius/worker-pool/v2"
+	"github.com/vardius/worker-pool/v3"
 )
 
 func Example() {
-	var wg sync.WaitGroup
+	var mu sync.Mutex
+	total := 0
 
-	poolSize := 1
-	jobsAmount := 3
-	workersAmount := 2
-
-	// create new pool
-	pool := workerpool.New(poolSize)
-	out := make(chan int, jobsAmount)
-	worker := func(i int) {
-		defer wg.Done()
-		out <- i
+	pool := workerpool.New[int](10)
+	for range 3 {
+		pool.AddWorker(func(n int) {
+			mu.Lock()
+			defer mu.Unlock()
+			total += n
+		})
 	}
 
-	for i := 1; i <= workersAmount; i++ {
-		if err := pool.AddWorker(worker); err != nil {
-			panic(err)
+	for n := 1; n <= 100; n++ {
+		if err := pool.Delegate(context.Background(), n); err != nil {
+			fmt.Println(err)
+			return
 		}
 	}
+	pool.Stop() // returns once every queued job has run
 
-	wg.Add(jobsAmount)
-
-	for i := 0; i < jobsAmount; i++ {
-		if err := pool.Delegate(i); err != nil {
-			panic(err)
-		}
-	}
-
-	go func() {
-		// stop all workers after jobs are done
-		wg.Wait()
-		close(out)
-		pool.Stop()
-	}()
-
-	sum := 0
-	for n := range out {
-		sum += n
-	}
-
-	fmt.Println(sum)
-	// Output:
-	// 3
+	fmt.Println(total)
+	// Output: 5050
 }
 
-func Example_second() {
-	poolSize := 2
-	jobsAmount := 8
-	workersAmount := 3
-
-	ch := make(chan int, jobsAmount)
-	defer close(ch)
-
-	// create new pool
-	pool := workerpool.New(poolSize)
+func ExamplePool_Delegate() {
+	pool := workerpool.New[string](1)
 	defer pool.Stop()
 
-	worker := func(i int, out chan<- int) { out <- i }
+	// No worker yet, so the first job fills the queue.
+	fmt.Println(pool.Delegate(context.Background(), "first"))
 
-	for i := 1; i <= workersAmount; i++ {
-		if err := pool.AddWorker(worker); err != nil {
-			panic(err)
-		}
-	}
-
-	go func() {
-		for n := 0; n < jobsAmount; n++ {
-			if err := pool.Delegate(n, ch); err != nil {
-				panic(err)
-			}
-		}
-	}()
-
-	var sum = 0
-	for sum < jobsAmount {
-		select {
-		case <-ch:
-			sum++
-		}
-	}
-
-	fmt.Println(sum)
+	// The queue is full: Delegate waits for room until ctx is done.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	fmt.Println(pool.Delegate(ctx, "second"))
 	// Output:
-	// 8
+	// <nil>
+	// context deadline exceeded
 }
 
-func Example_third() {
-	poolSize := 2
-	jobsAmount := 8
-	workersAmount := 3
+func ExamplePool_AddWorker() {
+	pool := workerpool.New[string](0)
+	defer pool.Stop()
 
-	var wg sync.WaitGroup
-	wg.Add(jobsAmount)
+	greet := func(name string) { fmt.Println("hello,", name) }
+	remove := pool.AddWorker(greet)
+	pool.AddWorker(greet) // the same func again: a second worker, with its own remove
 
-	// allocate queue
-	pool := workerpool.New(poolSize)
-	worker := func(s string) {
-		defer wg.Done()
-		defer fmt.Println("job " + s + " is done !")
-		fmt.Println("job " + s + " is running ..")
+	fmt.Println(pool.WorkersNum())
+	remove()
+	fmt.Println(pool.WorkersNum())
+	// Output:
+	// 2
+	// 1
+}
+
+func ExamplePool_Stop() {
+	pool := workerpool.New[string](3)
+	for _, job := range []string{"a", "b", "c"} {
+		_ = pool.Delegate(context.Background(), job)
 	}
 
-	// mock arg
-	argx := make([]string, jobsAmount)
-	for j := 0; j < jobsAmount; j++ {
-		argx[j] = "_" + strconv.Itoa(j) + "_"
-	}
-
-	// start workers
-	for i := 1; i <= workersAmount; i++ {
-		if err := pool.AddWorker(worker); err != nil {
-			panic(err)
-		}
-	}
-
-	// assign jobs
-	for i := 0; i < jobsAmount; i++ {
-		go func(i int) {
-			if err := pool.Delegate(argx[i]); err != nil {
-				panic(err)
-			}
-		}(i)
-	}
-
-	// clean up
-	wg.Wait()
+	// Jobs queued before the worker was added still run: Stop waits for them.
+	pool.AddWorker(func(job string) { fmt.Println("ran", job) })
 	pool.Stop()
 
-	// Unordered output:
-	// job _0_ is running ..
-	// job _0_ is done !
-	// job _1_ is running ..
-	// job _1_ is done !
-	// job _2_ is running ..
-	// job _2_ is done !
-	// job _3_ is running ..
-	// job _3_ is done !
-	// job _4_ is running ..
-	// job _4_ is done !
-	// job _5_ is running ..
-	// job _5_ is done !
-	// job _6_ is running ..
-	// job _6_ is done !
-	// job _7_ is running ..
-	// job _7_ is done !
+	fmt.Println(pool.Delegate(context.Background(), "d"))
+	// Output:
+	// ran a
+	// ran b
+	// ran c
+	// workerpool: pool stopped
 }

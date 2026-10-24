@@ -1,69 +1,72 @@
-package workerpool
+package workerpool_test
 
 import (
+	"context"
 	"runtime"
+	"strconv"
 	"testing"
+
+	"github.com/vardius/worker-pool/v3"
 )
 
-func poolDelegate(b *testing.B, pool Pool) {
-	for n := 0; n < b.N; n++ {
-		if err := pool.Delegate(n); err != nil {
-			b.Fatal(err)
+// The jobs do nothing, so what is measured is the pool's own cost: queueing a job and handing it to a worker.
+
+// BenchmarkDelegate queues jobs with no worker to take them: Delegate alone, into a queue with room.
+func BenchmarkDelegate(b *testing.B) {
+	const queueLength = 1 << 16
+	ctx := context.Background()
+	p := workerpool.New[int](queueLength)
+	queued := 0
+	b.ReportAllocs()
+	for b.Loop() {
+		if queued == queueLength {
+			// Full: carry on with an empty pool, off the clock.
+			b.StopTimer()
+			p, queued = workerpool.New[int](queueLength), 0
+			b.StartTimer()
 		}
+		_ = p.Delegate(ctx, queued)
+		queued++
 	}
 }
 
-func poolDelegateParallel(b *testing.B, pool Pool) {
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			if err := pool.Delegate(1); err != nil {
-				b.Fatal(err)
+// BenchmarkJob delegates jobs one after another to a pool whose workers do nothing.
+// Per op is the time per job, from Delegate to the worker's call.
+func BenchmarkJob(b *testing.B) {
+	for _, workers := range []int{1, runtime.GOMAXPROCS(0)} {
+		b.Run("workers="+strconv.Itoa(workers), func(b *testing.B) {
+			p := newBusyPool(workers)
+			defer p.Stop()
+			ctx := context.Background()
+			b.ReportAllocs()
+			job := 0
+			for b.Loop() {
+				_ = p.Delegate(ctx, job)
+				job++
 			}
+		})
+	}
+}
+
+// BenchmarkJobParallel is BenchmarkJob with GOMAXPROCS goroutines delegating at once.
+func BenchmarkJobParallel(b *testing.B) {
+	p := newBusyPool(runtime.GOMAXPROCS(0))
+	defer p.Stop()
+	ctx := context.Background()
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		job := 0
+		for pb.Next() {
+			_ = p.Delegate(ctx, job)
+			job++
 		}
 	})
 }
 
-func runBenchmark(b *testing.B, workersAmount int, runInParallel bool) {
-	pool := New(b.N)
-	defer pool.Stop()
-
-	worker := func(i int) {}
-
-	for i := 1; i <= workersAmount; i++ {
-		if err := pool.AddWorker(worker); err != nil {
-			b.Fatal(err)
-		}
+func newBusyPool(workers int) *workerpool.Pool[int] {
+	p := workerpool.New[int](1024)
+	for range workers {
+		p.AddWorker(noop)
 	}
-
-	b.ResetTimer()
-
-	if runInParallel {
-		poolDelegateParallel(b, pool)
-	} else {
-		poolDelegate(b, pool)
-	}
-}
-
-func BenchmarkWorker1(b *testing.B) {
-	runBenchmark(b, 1, false)
-}
-
-func BenchmarkWorker1Parallel(b *testing.B) {
-	runBenchmark(b, 1, true)
-}
-
-func BenchmarkWorker100(b *testing.B) {
-	runBenchmark(b, 100, false)
-}
-
-func BenchmarkWorker100Parallel(b *testing.B) {
-	runBenchmark(b, 100, true)
-}
-
-func BenchmarkWorkerNumCPU(b *testing.B) {
-	runBenchmark(b, runtime.NumCPU()+1, false)
-}
-
-func BenchmarkWorkerNumCPUParallel(b *testing.B) {
-	runBenchmark(b, runtime.NumCPU()+1, true)
+	return p
 }
