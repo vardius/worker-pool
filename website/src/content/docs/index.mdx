@@ -1,0 +1,130 @@
+---
+title: A worker pool for Go
+description: A worker pool for Go with typed jobs. Delegate waits while the queue is full, workers come and go at any time, and Stop finishes the queue before it returns.
+template: splash
+hero:
+  title: A worker pool with <span class="accent">typed</span> jobs
+  tagline: Queue jobs for a pool of goroutines. Delegate waits while the queue is full, workers come and go at any time, and Stop finishes the queue before it returns.
+  actions:
+    - text: Get started
+      link: getting-started/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/vardius/worker-pool
+      icon: github
+      variant: minimal
+---
+
+import { CardGrid, Card, LinkButton, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components';
+import BenchmarkChart from '../../components/BenchmarkChart.astro';
+import Stats from '../../components/Stats.astro';
+import { comparison } from '../../data/benchmarks';
+
+<Stats />
+
+<div class="landing-section">
+
+<p class="eyebrow">Features</p>
+
+## What you get
+
+<CardGrid>
+	<Card title="Typed jobs" icon="approve-check">
+		A `Pool[T]` queues values of type `T`, and a worker is a `func(T)`. The compiler checks them: no
+		reflection, no `interface{}`.
+	</Card>
+	<Card title="Backpressure" icon="warning">
+		When the queue is full, `Delegate` waits for room and gives up when its context is done, so a
+		deadline bounds the wait.
+	</Card>
+	<Card title="Graceful stop" icon="close">
+		`Stop` runs the queued jobs on the workers left and returns once they have exited. After it, `Delegate`
+		returns `ErrStopped`.
+	</Card>
+	<Card title="Workers at any time" icon="puzzle">
+		Add a worker whenever you like, each with its own func. `AddWorker` returns the func that
+		removes that worker.
+	</Card>
+	<Card title="Lean" icon="rocket">
+		Queueing a job into a queue with room and running it on a worker allocate nothing, and tests guard
+		the allocation counts.
+	</Card>
+	<Card title="Deterministic tests" icon="clock">
+		Tested in `testing/synctest` bubbles: fake time, no sleeps, no leaked goroutines, 100% coverage.
+	</Card>
+</CardGrid>
+
+</div>
+
+<div class="landing-section">
+
+<p class="eyebrow">Performance</p>
+
+## Faster than v2, with no allocations
+
+<div class="landing-lead">
+	v2 built a slice of reflect values for every job and called the worker through reflection. v3 sends a typed
+	value on a channel and calls the worker's func directly. A job through one worker went from 216 ns to 39 ns.
+	With 16 callers at once, the time is wall time per call across all of them, so it measures throughput.
+</div>
+
+<Tabs syncKey="bench">
+<TabItem label="Jobs">
+<BenchmarkChart title="Time per job, from Delegate to the worker" rows={comparison.job} />
+</TabItem>
+<TabItem label="Delegate">
+<BenchmarkChart title="Time per call to Delegate" rows={comparison.delegate} />
+</TabItem>
+</Tabs>
+
+<LinkCard title="How these were measured" href="benchmarks/" description="Methodology, the full v3 suite, and how to run it yourself." />
+
+</div>
+
+<div class="landing-section">
+
+<p class="eyebrow">Upgrading</p>
+
+## Coming from v2
+
+<div class="landing-lead">
+	The idea is the same, with types: a job is a <code>T</code> and a worker a <code>func(T)</code>. A worker is
+	removed with the func <code>AddWorker</code> returns, <code>Delegate</code> takes a context, and
+	<code>Stop</code> finishes the queue.
+</div>
+
+<div class="compare">
+
+```go title="v2"
+pool := workerpool.New(100)
+worker := func(path string) {
+	resize(path)
+}
+_ = pool.AddWorker(worker)
+
+_ = pool.Delegate(path)
+_ = pool.RemoveWorker(worker)
+```
+
+```go title="v3"
+pool := workerpool.New[string](100)
+remove := pool.AddWorker(resize)
+
+_ = pool.Delegate(ctx, path)
+remove()
+```
+
+</div>
+
+<LinkCard title="Migration guide" href="migrating-from-v2/" description="Every v2 call and its v3 form, and the behaviour changes to know about." />
+
+</div>
+
+<div class="cta not-content">
+	<h2>Run your first pool in five minutes</h2>
+	<p>Install the module, add a few workers, and hand them jobs. The guide walks through the queue, workers and stopping.</p>
+	<div class="cta-actions">
+		<LinkButton href="getting-started/" icon="right-arrow">Get started</LinkButton>
+		<LinkButton href="queue/" variant="minimal">Read the docs</LinkButton>
+	</div>
+</div>

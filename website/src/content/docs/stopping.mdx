@@ -1,0 +1,92 @@
+---
+title: Stopping
+description: Stop the pool taking jobs, let the workers finish the queue, and wait for them to exit.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+```go
+func (p *Pool[T]) Stop()
+```
+
+`Stop` shuts the pool down in order:
+
+1. The pool stops taking jobs. From then on `Delegate` returns `ErrStopped`, and calls that were waiting for
+   room return too.
+2. The workers run every job still in the queue. With no worker left, the jobs are dropped.
+3. `Stop` returns once every worker has exited, removed workers finishing their last job included.
+
+When `Stop` returns, no job is running and none will run: it is safe to close what the jobs use.
+
+```go
+pool := workerpool.New[Email](100)
+for range 4 {
+	pool.AddWorker(send)
+}
+defer pool.Stop() // sends what is queued before the function returns
+```
+
+## Waiting for the queue
+
+`Stop` is also how you wait for a batch of jobs: queue them all, then call `Stop`. With workers left to run
+them, it returns once each one has run.
+
+```go
+for _, path := range paths {
+	if err := pool.Delegate(ctx, path); err != nil {
+		return err
+	}
+}
+pool.Stop()
+```
+
+A stopped pool stays stopped. For the next batch, make a new pool: `New` and `AddWorker` are cheap next to
+the jobs they run.
+
+## Calling it again
+
+`Stop` can be called more than once, and from several goroutines at the same time. Every call returns once
+the workers have exited, so `defer pool.Stop()` stays safe after an earlier call.
+
+<Aside type="caution" title="Not from a job">
+A job that calls `Stop` waits for its own worker to exit, which can't happen until the job returns:
+`Stop` never returns. To stop the pool from a job, call `go pool.Stop()`.
+</Aside>
+
+## With no workers left
+
+The queued jobs run on the workers the pool has. If it never had one, or every worker was removed, before or
+during `Stop`, nothing can run them: `Stop` drops them and returns once the removed workers have finished their
+last jobs. A pool paused by removing its workers needs new ones before `Stop`.
+
+## Shutting down faster
+
+`Stop` waits for every queued job. To cut a shutdown short, give the jobs a context and cancel it first,
+so that each remaining job returns at once:
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+pool.AddWorker(func(e Email) {
+	if ctx.Err() != nil {
+		return // shutting down: skip it
+	}
+	send(e)
+})
+
+// on shutdown
+cancel()
+pool.Stop()
+```
+
+## In a server
+
+Stop the server taking requests first, then stop the pool, so that no handler is left queueing jobs:
+
+```go
+if err := srv.Shutdown(ctx); err != nil {
+	log.Print(err)
+}
+pool.Stop() // finishes the jobs the requests queued
+```
+
+The [server example](../queue/#example-answering-503-when-the-queue-stays-full) does this on Ctrl-C.

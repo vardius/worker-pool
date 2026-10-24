@@ -1,0 +1,64 @@
+---
+title: Benchmarks
+description: What queueing a job and running it on a worker cost, how v3 compares with v2, and how to measure it yourself.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import BenchmarkChart from '../../components/BenchmarkChart.astro';
+import BenchmarkSuite from '../../components/BenchmarkSuite.astro';
+import { comparison, suite } from '../../data/benchmarks';
+
+These numbers measure the pool alone: a job is an `int` and the workers do nothing with it, so what's left is
+the cost of queueing a job and handing it to a worker. Your jobs will dominate a real run; the point is that
+the pool adds as little as possible.
+
+`Delegate` alone runs into a queue with room for every job. A job through workers runs through a queue of 1024:
+when the workers fall behind, `Delegate` waits, so the time per job is the pace of the whole pool. With 16
+callers at once, the time is wall time per call across all of them, so it measures throughput.
+
+## v3 against v2
+
+Both versions ran on the same harness, with the same jobs.
+
+<Tabs syncKey="bench">
+<TabItem label="Jobs">
+<BenchmarkChart title="Time per job, from Delegate to the worker" rows={comparison.job} />
+</TabItem>
+<TabItem label="Delegate">
+<BenchmarkChart title="Time per call to Delegate" rows={comparison.delegate} />
+</TabItem>
+</Tabs>
+
+v2 built a slice of `reflect.Value`s for every job, boxing each argument, and called the worker with
+`reflect.Value.Call`. v3 sends the job on a typed channel and calls the worker's func directly.
+
+With jobs that do nothing, one caller can't keep 16 workers busy: they wait and wake for every job, which
+costs more than the job itself. With real work, the workers stay busy and take jobs straight from the queue.
+
+## v3's own suite
+
+<BenchmarkSuite rows={suite} />
+
+<Aside title="Where the time goes">
+`Delegate` checks the context, takes a read lock that orders it against `Stop`, and sends on a channel.
+A worker checks whether it was removed, which takes no lock, and receives from the channel; only when the
+queue is empty does it wait on both the queue and its quit channel. Neither allocates. Adding a worker
+allocates the worker, its quit channel, its goroutine's closure and the `remove` func it returns.
+</Aside>
+
+## Run them yourself
+
+From a clone of the repository:
+
+```sh
+go test -run '^$' -bench . -benchmem
+```
+
+To compare two versions, run each a few times and compare with [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat):
+
+```sh
+go test -run '^$' -bench . -count 10 > new.txt
+benchstat old.txt new.txt
+```
+
+The allocation counts are also enforced by tests: `TestAllocations` fails if a call allocates more than it should.

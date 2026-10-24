@@ -1,0 +1,79 @@
+---
+title: Workers
+description: Add workers at any time, each with its own func, and remove one with the func AddWorker returns.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+```go
+func (p *Pool[T]) AddWorker(fn func(job T)) (remove func())
+func (p *Pool[T]) WorkersNum() int
+```
+
+A worker is a goroutine that takes jobs from the queue one at a time and calls `fn` with each.
+A pool starts with none: add as many as the work can use, at any time.
+
+```go
+pool := workerpool.New[Email](100)
+for range 4 {
+	pool.AddWorker(send) // send is a func(Email)
+}
+```
+
+For work that waits on the network or disk, more workers than CPUs is usual; for work that keeps a CPU busy,
+`runtime.NumCPU()` is a good start.
+
+## Each worker has its own func
+
+Workers on one pool share the queue but not their func, so a worker can own something the others don't:
+a connection, a client, a buffer. Whichever worker is free takes the next job.
+
+```go
+for _, c := range clients {
+	pool.AddWorker(c.Send) // each worker sends through its own client
+}
+```
+
+## Removing a worker
+
+`AddWorker` returns a func that removes that worker, and only that one. Adding the same func twice gives two
+workers, each with its own `remove`.
+
+```go
+remove := pool.AddWorker(c.Send)
+
+// later, when the client goes away
+remove()
+```
+
+A removed worker finishes the job it is running, if any, and exits. One that is between jobs when you call
+`remove` may still take one more first. `remove` doesn't wait for the worker: it returns at once, so a job can
+remove its own worker. Calling `remove` again does nothing.
+
+To pause a pool, remove its workers. The jobs wait in the queue, and new workers take them. Add them before
+`Stop`: it drops the jobs no worker is left to run.
+
+## Counting workers
+
+`WorkersNum` returns the number of workers added and not removed. A removed worker stops counting at once,
+even while it finishes its last job. Once `Stop` returns, it is 0.
+
+## Panics
+
+A panic in a worker's func isn't recovered: like a panic in any goroutine, it ends the program.
+To keep a pool running past a panicking job, recover in the func:
+
+```go
+pool.AddWorker(func(e Email) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("send to %s: %v", e.To, r)
+		}
+	}()
+	send(e)
+})
+```
+
+<Aside title="After Stop">
+Once the pool is stopped, `AddWorker` starts nothing and returns a `remove` that does nothing.
+</Aside>

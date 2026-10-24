@@ -1,0 +1,72 @@
+---
+title: Getting started
+description: Install worker-pool, hash a folder of files on every CPU, and see what the queue, the workers and Stop are for.
+---
+
+import { Code, LinkCard, CardGrid, Steps } from '@astrojs/starlight/components';
+import checksum from '../../../../examples/checksum/main.go?raw';
+
+worker-pool runs jobs on a pool of goroutines fed by one bounded queue. It has three parts:
+
+- **The queue.** `Delegate` adds a job, and waits while the queue is full.
+- **Workers.** `AddWorker` starts a goroutine that takes jobs one at a time and calls a func with each.
+- **Stop.** `Stop` runs every job still queued on the workers left, and waits for them to exit.
+
+## Install
+
+worker-pool needs Go 1.26 or newer.
+
+```sh
+go get github.com/vardius/worker-pool/v3
+```
+
+## Your first pool
+
+This program prints the SHA-256 of every file it is given, hashing one file per CPU at once.
+A job is the index of a file, so each worker writes its own result and nothing needs a lock:
+
+<Code code={checksum} lang="go" title="examples/checksum/main.go" />
+
+## Run it
+
+<Steps>
+
+1. From a clone of the repository, hash a few files:
+
+   ```sh
+   go run ./examples/checksum go.mod README.md LICENSE.md
+   ```
+
+   It prints one line per file, in the order you gave them, whichever worker hashed it.
+
+2. Add a file that doesn't exist. The others are still hashed, and the error is printed on its own line:
+
+   ```sh
+   go run ./examples/checksum go.mod no-such-file
+   ```
+
+   ```txt
+   open no-such-file: no such file or directory
+   ```
+
+</Steps>
+
+## What just happened
+
+- `workerpool.New[int](workers)` made a pool whose jobs are `int`s, with room for one queued job per worker.
+- `AddWorker` started one worker per CPU, each calling the same func.
+- `Delegate` queued every index. Whenever the queue was full, it waited for a worker to take a job.
+  Press Ctrl-C while files are still being queued and its context is done: `Delegate` returns the context's error,
+  the files already queued are hashed, and the program exits with "context canceled". Once every file is queued,
+  the run finishes what it has; a second Ctrl-C ends it at once.
+- `Stop` ran what was still queued and returned once every worker had exited. Only then were the sums read,
+  so they needed no lock.
+
+## Next steps
+
+<CardGrid>
+	<LinkCard title="The queue" href="../queue/" description="What Delegate does when the queue is full, the context is done, or the pool is stopped." />
+	<LinkCard title="Workers" href="../workers/" description="Add and remove workers at any time, each with its own func." />
+	<LinkCard title="Stopping" href="../stopping/" description="Finish the queue, wait for the workers, and shut down cleanly." />
+	<LinkCard title="Benchmarks" href="../benchmarks/" description="What a job costs, and how v3 compares with v2." />
+</CardGrid>

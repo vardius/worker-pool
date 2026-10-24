@@ -1,0 +1,83 @@
+---
+title: The queue
+description: How Delegate queues a job, what it does when the queue is full, and how a context bounds the wait.
+---
+
+import { Aside, Code } from '@astrojs/starlight/components';
+import example from '../../../../examples/server/main.go?raw';
+
+```go
+func New[T any](queueLength int) *Pool[T]
+func (p *Pool[T]) Delegate(ctx context.Context, job T) error
+```
+
+A pool has one queue. `New` takes its length, and the type parameter is the type of a job: any value,
+often a struct with what the job needs.
+
+```go
+type Email struct {
+	To, Subject, Body string
+}
+
+pool := workerpool.New[Email](100)
+```
+
+`Delegate` adds a job to the queue. The next free worker takes it, in the order jobs were queued.
+
+## When there is room
+
+`Delegate` queues the job and returns nil at once. It doesn't wait for the job to run.
+
+A queue of length 0 holds nothing: `Delegate` waits until a worker takes the job from it. Use it when the
+caller should never get ahead of the workers.
+
+## When the queue is full
+
+`Delegate` waits for a worker to take a job and make room. It gives up when its context is done, and returns
+the context's error: pass a context with a deadline to bound the wait.
+
+```go
+ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+defer cancel()
+
+if err := pool.Delegate(ctx, email); err != nil {
+	return fmt.Errorf("queue email to %s: %w", email.To, err)
+}
+```
+
+With `context.Background()`, `Delegate` waits as long as it takes, or until the pool is stopped.
+
+<Aside title="Delegate from a job">
+A job may call `Delegate` on its own pool. If every worker does that while the queue is full, none is left to
+make room, and they wait for each other. Give those calls a deadline, or queue the follow-up work elsewhere.
+</Aside>
+
+## When the context is done first
+
+If the context is already done, `Delegate` returns its error and doesn't queue the job, even when there is room.
+Cancelling a producer's context stops it queueing at once.
+
+## When the pool is stopped
+
+`Delegate` returns `ErrStopped`. Calls that were waiting for room when `Stop` was called return too.
+
+```go
+if errors.Is(err, workerpool.ErrStopped) {
+	// shutting down: turn the work away
+}
+```
+
+A job that `Delegate` queued, with a nil error, runs before `Stop` returns, as long as a worker is left to run it.
+
+## Before any worker
+
+Jobs wait in the queue until a worker is free, so you can queue them before adding a worker. Once the queue
+is full, `Delegate` waits as it always does.
+
+## Example: answering 503 when the queue stays full
+
+This server queues each request's body as a job. When the queue stays full for 100 ms, it answers
+503 Service Unavailable with a `Retry-After` header, so clients back off instead of piling up.
+On Ctrl-C it stops taking requests, then stops the pool, which finishes the queued jobs:
+
+<Code code={example} lang="go" title="examples/server/main.go" />
